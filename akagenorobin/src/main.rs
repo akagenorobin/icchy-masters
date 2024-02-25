@@ -1,16 +1,16 @@
 use proconio::input;
 
-fn energy(yama: Vec<i32>) -> i32{
+/*fn energy(yama: Vec<i32>) -> i32 {
     let mut e = 0;
-    for j in 0 .. yama.len() - 1 {
+    for j in 0..yama.len() - 1 {
         if yama[j] > yama[j + 1] {
             e -= 1;
         }
     }
     e
 }
-
-fn solve(target: usize, a: Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+*/
+fn solve(target: usize, m: usize, a: Vec<Vec<i32>>) -> Vec<Vec<i32>> {
     let mut b = a.clone();
 
 /*    for (k, c) in b.iter().enumerate() {
@@ -24,27 +24,34 @@ fn solve(target: usize, a: Vec<Vec<i32>>) -> Vec<Vec<i32>> {
                 if j == yama.len() - 1 {
                     println!("{} 0", target);
                     b[i].pop();
-                }
-                else {
-                    let mut max_e = -300;
-                    let mut target_k = 0;
-
-                    for (k, yama2) in a.iter().enumerate() {
-                        if i == k {
-                            continue;
+                } else {
+                    for j2 in (j + 1..yama.len()).rev() {
+                        let mut min_diff = 200;
+                        let mut target_i = 100;
+                        for (i2, yama2) in b.iter().enumerate() {
+                            if i == i2 {
+                                continue;
+                            }
+                            if yama2.len() == 0{
+                                target_i = i2;
+                                break;
+                            }
+                            let diff = yama[j2] - yama2[yama2.len() - 1];
+                            if diff < 0 {
+                                continue;
+                            } else if diff < min_diff {
+                                min_diff = diff;
+                                target_i = i2;
+                            }
                         }
-                        let mut y = yama2.clone();
-                        y.extend(&yama[j + 1..yama.len()]);
-                        let e = energy(y);
-                        if e > max_e {
-                            max_e = e;
-                            target_k = k;
+                        if target_i == 100 {
+                            target_i = (i + 1) % m;
                         }
+                        println!("{} {}", yama[j2], target_i + 1);
+                        b[target_i].push(yama[j2]);
                     }
 
-                    println!("{} {}", yama[j + 1], target_k + 1);
                     println!("{} 0", target);
-                    b[target_k].extend(&yama[j + 1..yama.len()]);
                     for _ in j..yama.len() {
                         b[i].pop();
                     }
@@ -64,7 +71,10 @@ fn main() {
     }
 
     let mut b = a.clone();
-    for target in 1..n+1 {
-        b = solve(target, b);
+    for target in 1..n + 1 {
+        b = solve(target, m, b);
+        if target == 207 {
+            break;
+        }
     }
 }
