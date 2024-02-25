@@ -31,10 +31,10 @@ fn solve(target: usize, m: usize, a: Vec<Vec<i32>>) -> Vec<Vec<i32>> {
                     b[i].pop();
                 }
                 else {
-                    let tonari: usize = query_next( i , &a );
-                    println!("{} {}", yama[j + 1], tonari + 1);
+                    let next: usize = query_next( i , &a );
+                    println!("{} {}", yama[j + 1], next + 1);
                     println!("{} 0", target);
-                    b[tonari].extend(&yama[j + 1..yama.len()]);
+                    b[next].extend(&yama[j + 1..yama.len()]);
                     for _ in j..yama.len() {
                         b[i].pop();
                     }
