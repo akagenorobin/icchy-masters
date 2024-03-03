@@ -69,23 +69,16 @@ fn main() {
         result_history.push( aaa.clone()) ;
     }
 
-    println!("");
-    println!("==========Step1===========");
-    println!("");
-    println!("Energy: {}", global_energy(&n, &v, &h, &result_history[1])) ;
-    visualize_with_person(n,v.clone(),h.clone(), result_history[1].clone(), takahashi_history[1], aoki_history[1]) ;
+    // let total_step = walks.len() 全てのステップを見るには、この変数を使う。;
+    let total_step = 3; // ここを変更
 
-    println!("");
-    println!("==========Step2===========");
-    println!("");
-    println!("Energy: {}", global_energy(&n, &v, &h, &result_history[2])) ;
-    visualize_with_person(n,v.clone(),h.clone(), result_history[2].clone(), takahashi_history[2], aoki_history[2]) ;
-
-    println!("");
-    println!("==========Step3===========");
-    println!("");
-    println!("Energy: {}", global_energy(&n, &v, &h, &result_history[3])) ;
-    visualize_with_person(n,v.clone(),h.clone(), result_history[3].clone(), takahashi_history[3], aoki_history[3]) ;
+    for step in 1..total_step {
+        println!("");
+        println!("==========Step{}===========", step);
+        println!("");
+        println!("Energy: {}", global_energy(&n, &v, &h, &result_history[step])) ;
+        visualize_with_person(n,v.clone(),h.clone(), result_history[step].clone(), takahashi_history[step], aoki_history[step]) ;
+    }
 
     println!("");
     println!("==========Finished===========");
