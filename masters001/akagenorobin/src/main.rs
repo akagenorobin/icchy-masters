@@ -34,6 +34,22 @@ fn energy(
     e
 }
 
+fn global_energy(
+    n: &usize,
+    v: &Vec<Vec<i32>>,
+    h: &Vec<Vec<i32>>,
+    a: &Vec<Vec<i32>>,
+) -> i32 {
+    let mut e = 0;
+    for x in 0..*n {
+        for y in 0..*n {
+            let value = (*a)[y][x];
+            e += energy(n, v, h, a, &x, &y, &value);
+        }
+    }
+    e
+}
+
 fn walk(n: &usize, point: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>) -> (char, Point) {
     let mut p_next: Vec<(char, Point)> = vec![];
 
@@ -87,14 +103,23 @@ fn update(
     point_t: &Point,
     point_a: &Point,
 ) -> (String, Point, Point, bool) {
-    let value_t = a[point_t.x][point_t.y];
-    let value_a = a[point_a.x][point_a.y];
+    let e_before = global_energy(n, v, h, a);
 
+    let mut a_swapped = a.clone();
+    let value_t = a[point_t.y][point_t.x];
+    let value_a = a[point_a.y][point_a.x];
+    a_swapped[point_t.y][point_t.x] = value_a;
+    a_swapped[point_a.y][point_a.x] = value_t;
+    let e_after = global_energy(n, v, h, &a_swapped);
+
+    let diff = e_after - e_before;
+
+    /*
     let diff = energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_t)
         + energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_a)
         - energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_a)
         - energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_t);
-
+    */
     let point_t_next = walk(&n, &point_t, &v, &h);
     let point_a_next = walk(&n, &point_a, &v, &h);
 
@@ -114,7 +139,15 @@ fn update(
         )
     }
 }
-
+/*
+fn output(a: &Vec<Vec<i32>>) {
+    for values in a {
+        let v: Vec<String> = values.iter().map(|x| x.to_string()).collect();
+        println!("{}", v.join(" "));
+    }
+    println!("\n");
+}
+*/
 fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<String> {
     let mut ans: Vec<String> = vec![];
     let mut point_t = Point { x: 0, y: 0 };
@@ -127,12 +160,25 @@ fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<
     ));
 
     for _ in 0..4 * n * n {
+        //let e_before = global_energy(&n, &v, &h, &a_);
+
         let (ans_, point_t_next, point_a_next, swapped) = update(&n, &v, &h, &a_, &point_t, &point_a);
 
         if swapped {
-            (a_[point_t.y][point_t.x], a_[point_a.y][point_a.x])= (a[point_a.y][point_a.x], a[point_a.y][point_a.x]);
+            let value_t = a_[point_t.y][point_t.x];
+            let value_a = a_[point_a.y][point_a.x];
+            a_[point_t.y][point_t.x] = value_a;
+            a_[point_a.y][point_a.x] = value_t;
         }
 
+        /*
+        let e_after = global_energy(&n, &v, &h, &a_);
+        if e_after > e_before {
+            println!("e_before: {}", e_before);
+            println!("e_after: {}", e_after);
+            output(&a_);
+        }
+        */
         point_t = point_t_next;
         point_a = point_a_next;
         ans.push(ans_);
