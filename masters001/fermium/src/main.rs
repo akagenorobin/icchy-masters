@@ -77,15 +77,62 @@ fn get_can_walk(n: &usize, point: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>)
     p_next
 }
 
-fn walk(n: &usize, point_t: &Point, point_a: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>) -> ((char, Point), (char, Point)) {
+fn find_min_indexes(numbers: &[i32]) -> Option<Vec<usize>> {
+    // 最小値を見つけます。
+    let min_value = numbers.iter().min()?;
+
+    // 最小値を持つ全てのインデックスを集めます。
+    let min_indexes: Vec<usize> = numbers.iter()
+        .enumerate()
+        .filter(|&(_, &value)| value == *min_value)
+        .map(|(index, _)| index)
+        .collect();
+
+    Some(min_indexes)
+}
+
+fn walk(n: &usize, point_t: &Point, point_a: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>,
+        a: &Vec<Vec<i32>>) -> ((char, Point), (char, Point)) {
     let p_next_t = get_can_walk(&n, &point_t, &v, &h);
     let p_next_a = get_can_walk(&n, &point_a, &v, &h);
 
-    let mut rng = rand::thread_rng();
-    let r_t: usize = rng.gen::<usize>() % p_next_t.len();
-    let r_a: usize = rng.gen::<usize>() % p_next_a.len();
+    // let mut rng = rand::thread_rng();
+    // let r_t: usize = rng.gen::<usize>() % p_next_t.len();
+    // let r_a: usize = rng.gen::<usize>() % p_next_a.len();
+    // (p_next_t[r_t], p_next_a[r_a])
 
-    (p_next_t[r_t], p_next_a[r_a])
+    let mut moves: Vec<((char, Point), (char, Point))> = vec![];
+    let mut diffs: Vec<i32> = vec![];
+
+    for (char_t, point_t_next_sim) in p_next_t {
+        for (char_a, point_a_next_sim) in &p_next_a {
+            let diff_sim = diff(&n, &v, &h, &a, &point_t_next_sim, &point_a_next_sim);
+            moves.push(((char_t, point_t_next_sim), (*char_a, *point_a_next_sim)));
+            diffs.push(diff_sim);
+        }
+    }
+
+    let min_indexes =  find_min_indexes(&diffs);
+
+    let mut rng = rand::thread_rng();
+    if let Some(indexes) = min_indexes {
+        let r: usize = rng.gen::<usize>() % indexes.len();
+        return moves[r]
+    } else {
+        moves[0]
+    }
+
+}
+
+fn diff(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>, point_t: &Point,
+point_a: &Point) -> i32 {
+    let value_t = a[point_t.x][point_t.y];
+    let value_a = a[point_a.x][point_a.y];
+
+    energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_t)
+        + energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_a)
+        - energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_a)
+        - energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_t)
 }
 
 fn update(
@@ -96,15 +143,9 @@ fn update(
     point_t: &Point,
     point_a: &Point,
 ) -> (String, Point, Point, bool) {
-    let value_t = a[point_t.x][point_t.y];
-    let value_a = a[point_a.x][point_a.y];
+    let diff = diff(&n, &v, &h, &a, &point_t, &point_a);
 
-    let diff = energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_t)
-        + energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_a)
-        - energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_a)
-        - energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_t);
-
-    let (point_t_next, point_a_next) = walk(&n, &point_t, &point_a, &v, &h);
+    let (point_t_next, point_a_next) = walk(&n, &point_t, &point_a, &v, &h, &a);
 
     if diff < 0 {
         (
