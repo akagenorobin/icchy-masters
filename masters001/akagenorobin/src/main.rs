@@ -1,8 +1,6 @@
 use proconio::input;
 use rand::prelude::*;
 
-const DEBUG: bool = false;
-
 #[derive(Debug, Copy, Clone)]
 struct Point {
     x: usize,
@@ -36,7 +34,23 @@ fn energy(
     e
 }
 
-fn walk(n: &usize, point: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>) -> (char, Point) {
+fn global_energy(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>) -> i32 {
+    let mut e = 0;
+    for x in 0..*n {
+        for y in 0..*n {
+            let value = (*a)[y][x];
+            e += energy(n, v, h, a, &x, &y, &value);
+        }
+    }
+    e
+}
+
+fn get_can_walk(
+    n: &usize,
+    point: &Point,
+    v: &Vec<Vec<i32>>,
+    h: &Vec<Vec<i32>>,
+) -> Vec<(char, Point)> {
     let mut p_next: Vec<(char, Point)> = vec![];
 
     if point.x != 0 && (*v)[point.y][point.x - 1] == 0 {
@@ -75,10 +89,96 @@ fn walk(n: &usize, point: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>) -> (char
             },
         ));
     }
+    p_next
+}
 
+fn find_min_indexes(numbers: &[i32]) -> Option<Vec<usize>> {
+    // 最小値を見つけます。
+    let min_value = numbers.iter().min()?;
+
+    // 最小値を持つ全てのインデックスを集めます。
+    let min_indexes: Vec<usize> = numbers
+        .iter()
+        .enumerate()
+        .filter(|&(_, &value)| value == *min_value)
+        .map(|(index, _)| index)
+        .collect();
+
+    Some(min_indexes)
+}
+
+fn walk(
+    n: &usize,
+    point_t: &Point,
+    point_a: &Point,
+    v: &Vec<Vec<i32>>,
+    h: &Vec<Vec<i32>>,
+    a: &Vec<Vec<i32>>,
+) -> ((char, Point), (char, Point)) {
+    let p_next_t = get_can_walk(&n, &point_t, &v, &h);
+    let p_next_a = get_can_walk(&n, &point_a, &v, &h);
+
+    // let mut rng = rand::thread_rng();
+    // let r_t: usize = rng.gen::<usize>() % p_next_t.len();
+    // let r_a: usize = rng.gen::<usize>() % p_next_a.len();
+    // (p_next_t[r_t], p_next_a[r_a])
+
+    let mut moves: Vec<((char, Point), (char, Point))> = vec![];
+    let mut diffs: Vec<i32> = vec![];
+
+    let current_diff = diff(&n, &v, &h, &a, &point_t, &point_a);
+    let mut swap = false;
+    if current_diff < 0 {
+        swap = true;
+    }
+    let a_ = &mut a.clone();
+    if swap {
+        let value_t = a_[point_t.y][point_t.x];
+        let value_a = a_[point_a.y][point_a.x];
+        a_[point_t.y][point_t.x] = value_a;
+        a_[point_a.y][point_a.x] = value_t;
+    }
+    for (char_t, point_t_next_sim) in p_next_t {
+        for (char_a, point_a_next_sim) in &p_next_a {
+            let diff_sim = diff(&n, &v, &h, &a_, &point_t_next_sim, &point_a_next_sim);
+            moves.push(((char_t, point_t_next_sim), (*char_a, *point_a_next_sim)));
+            diffs.push(diff_sim);
+        }
+    }
+    // println!("{:?},{:?}",moves, diffs);
+
+    let min_indexes = find_min_indexes(&diffs);
+    // println!("{:?}",min_indexes);
     let mut rng = rand::thread_rng();
-    let r: usize = rng.gen::<usize>() % p_next.len();
-    p_next[r]
+    if let Some(indexes) = min_indexes {
+        if diffs[indexes[0]] < 0 {
+            let r: usize = rng.gen::<usize>() % indexes.len();
+            return moves[indexes[r]];
+        } else {
+            let r: usize = rng.gen::<usize>() % moves.len();
+            return moves[r];
+        }
+    } else {
+        let r: usize = rng.gen::<usize>() % moves.len();
+        return moves[r];
+    }
+}
+
+fn diff(
+    n: &usize,
+    v: &Vec<Vec<i32>>,
+    h: &Vec<Vec<i32>>,
+    a: &Vec<Vec<i32>>,
+    point_t: &Point,
+    point_a: &Point,
+) -> i32 {
+    let value_t = a[point_t.y][point_t.x];
+    let value_a = a[point_a.y][point_a.x];
+
+    energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_t)
+        + energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_a)
+        - energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_a)
+        - energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_t)
 }
 
 fn update(
@@ -89,17 +189,11 @@ fn update(
     point_t: &Point,
     point_a: &Point,
 ) -> (String, Point, Point, bool) {
-    let value_t = a[point_t.y][point_t.x];
-    let value_a = a[point_a.y][point_a.x];
+    let diff = diff(&n, &v, &h, &a, &point_t, &point_a);
 
-    let diff = energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_t)
-        + energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_a)
-        - energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_a)
-        - energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_t);
+    let (point_t_next, point_a_next) = walk(&n, &point_t, &point_a, &v, &h, &a);
 
-    let point_t_next = walk(&n, &point_t, &v, &h);
-    let point_a_next = walk(&n, &point_a, &v, &h);
-
+    // println!("diff={}",diff);
     if diff < 0 {
         (
             format!("1 {} {}", point_t_next.0, point_a_next.0),
@@ -117,29 +211,10 @@ fn update(
     }
 }
 
-fn global_energy(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>) -> i32 {
-    let mut e = 0;
-    for x in 0..*n {
-        for y in 0..*n {
-            let value = (*a)[y][x];
-            e += energy(n, v, h, a, &x, &y, &value);
-        }
-    }
-    e
-}
-
-fn output(a: &Vec<Vec<i32>>) {
-    for values in a {
-        let v: Vec<String> = values.iter().map(|x| x.to_string()).collect();
-        println!("{}", v.join(" "));
-    }
-    println!("\n");
-}
-
-fn solve(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>, point_t_initial: Point, point_a_initial: Point) -> (Vec<String>, i32) {
+fn solve(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>) -> (Vec<String>, i32) {
     let mut ans: Vec<String> = vec![];
-    let mut point_t = point_t_initial.clone();
-    let mut point_a = point_a_initial.clone();
+    let mut point_t = Point { x: 0, y: 0 };
+    let mut point_a = Point { x: n - 1, y: n - 1 };
     let mut a_ = a.clone();
 
     ans.push(format!(
@@ -149,12 +224,10 @@ fn solve(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>, poi
 
     let e_before = global_energy(n, v, h, &a_);
 
-    if DEBUG {
-        println!("e_before: {}", e_before);
-        output(&a_);
-    }
-
     for _ in 0..4 * n * n {
+        // for _ in 0..20 {
+        //     println!("{:?},{:?}",point_t,point_a);
+        // println!("{}",global_energy(&n,&v,&h,&a_));
         let (ans_, point_t_next, point_a_next, swapped) =
             update(&n, &v, &h, &a_, &point_t, &point_a);
 
@@ -171,10 +244,6 @@ fn solve(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>, poi
     }
 
     let e_after = global_energy(n, v, h, &a_);
-    if DEBUG {
-        println!("e_after: {}", e_after);
-        output(&a_);
-    }
 
     (ans, e_after - e_before)
 }
@@ -207,25 +276,18 @@ fn main() {
         h.push(_h);
     }
 
-    for _ in 0..1 {
-        let mut rng = rand::thread_rng();
+    let mut e_diff_min = 0;
+    let mut ans_best: Vec<String> = vec![];
 
-        let point_t_initial = Point {
-            x: rng.gen::<usize>() % n,
-            y: rng.gen::<usize>() % n,
-        };
-
-        let point_a_initial = Point {
-            x: rng.gen::<usize>() % n,
-            y: rng.gen::<usize>() % n,
-        };
-
-        let (ans, _) = solve(&n, &v, &h, &a, point_t_initial, point_a_initial);
-
-        for step in ans {
-            if !DEBUG {
-                println!("{}", step);
-            }
+    for _ in 0..10 {
+        let (ans, e_diff) = solve(&n, &v, &h, &a);
+        if e_diff < e_diff_min {
+            e_diff_min = e_diff;
+            ans_best = ans;
         }
+    }
+
+    for step in ans_best {
+        println!("{}", step);
     }
 }
