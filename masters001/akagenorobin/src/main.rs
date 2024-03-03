@@ -1,6 +1,8 @@
 use proconio::input;
 use rand::prelude::*;
 
+const DEBUG: bool = false;
+
 #[derive(Debug, Copy, Clone)]
 struct Point {
     x: usize,
@@ -90,16 +92,6 @@ fn update(
     let value_t = a[point_t.y][point_t.x];
     let value_a = a[point_a.y][point_a.x];
 
-    /*
-    let e_before = global_energy(n, v, h, a);
-    let mut a_swapped = a.clone();
-    a_swapped[point_t.y][point_t.x] = value_a;
-    a_swapped[point_a.y][point_a.x] = value_t;
-    let e_after = global_energy(n, v, h, &a_swapped);
-
-    let diff = e_after - e_before;
-    */
-
     let diff = energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_t)
         + energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_a)
         - energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_a)
@@ -125,7 +117,6 @@ fn update(
     }
 }
 
-/*
 fn global_energy(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>) -> i32 {
     let mut e = 0;
     for x in 0..*n {
@@ -144,12 +135,11 @@ fn output(a: &Vec<Vec<i32>>) {
     }
     println!("\n");
 }
-*/
 
-fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<String> {
+fn solve(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>, point_t_initial: Point, point_a_initial: Point) -> (Vec<String>, i32) {
     let mut ans: Vec<String> = vec![];
-    let mut point_t = Point { x: 0, y: 0 };
-    let mut point_a = Point { x: n - 1, y: n - 1 };
+    let mut point_t = point_t_initial.clone();
+    let mut point_a = point_a_initial.clone();
     let mut a_ = a.clone();
 
     ans.push(format!(
@@ -157,10 +147,14 @@ fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<
         point_t.x, point_t.y, point_a.x, point_a.y
     ));
 
-    for _ in 0..4 * n * n {
-        // for _ in 0..1000 {
-        // let e_before = global_energy(&n, &v, &h, &a_);
+    let e_before = global_energy(n, v, h, &a_);
 
+    if DEBUG {
+        println!("e_before: {}", e_before);
+        output(&a_);
+    }
+
+    for _ in 0..4 * n * n {
         let (ans_, point_t_next, point_a_next, swapped) =
             update(&n, &v, &h, &a_, &point_t, &point_a);
 
@@ -171,20 +165,18 @@ fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<
             a_[point_a.y][point_a.x] = value_t;
         }
 
-        /*
-        let e_after = global_energy(&n, &v, &h, &a_);
-        if e_after > e_before {
-            println!("e_before: {}", e_before);
-            println!("e_after: {}", e_after);
-            output(&a_);
-        }
-        */
         point_t = point_t_next;
         point_a = point_a_next;
         ans.push(ans_);
     }
 
-    ans
+    let e_after = global_energy(n, v, h, &a_);
+    if DEBUG {
+        println!("e_after: {}", e_after);
+        output(&a_);
+    }
+
+    (ans, e_after - e_before)
 }
 
 fn main() {
@@ -215,9 +207,25 @@ fn main() {
         h.push(_h);
     }
 
-    let ans = solve(n, v, h, a);
+    for _ in 0..1 {
+        let mut rng = rand::thread_rng();
 
-    for step in ans {
-        println!("{}", step);
+        let point_t_initial = Point {
+            x: rng.gen::<usize>() % n,
+            y: rng.gen::<usize>() % n,
+        };
+
+        let point_a_initial = Point {
+            x: rng.gen::<usize>() % n,
+            y: rng.gen::<usize>() % n,
+        };
+
+        let (ans, _) = solve(&n, &v, &h, &a, point_t_initial, point_a_initial);
+
+        for step in ans {
+            if !DEBUG {
+                println!("{}", step);
+            }
+        }
     }
 }
