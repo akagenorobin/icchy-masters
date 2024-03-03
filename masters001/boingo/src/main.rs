@@ -1,4 +1,3 @@
-use std::fmt::format;
 use proconio::input;
 use colored::*;
 use std::io::{self, stdin};
@@ -10,6 +9,7 @@ struct Point {
     y: usize,
 }
 
+#[derive(PartialEq)]
 enum Direction {
     Up,
     Down,
@@ -29,8 +29,8 @@ fn main() {
         .filter_map(|s| s.parse().ok()) // 各文字列をusizeにパースし、結果がOkなら値を取得
         .collect(); // 結果をVec<usize>にまとめる
 
-    let takahashi_first = Point { x: numbers[0], y: numbers[1] };
-    let aoki_first = Point { x: numbers[2], y: numbers[3] };
+    let takahashi_first = Point { x: numbers[1], y: numbers[0] };
+    let aoki_first = Point { x: numbers[3], y: numbers[2] };
 
     let walks: &Vec<(bool, Direction, Direction)> = &lines[1..]
         .iter().filter_map( |line| Some(translace(line)) )
@@ -39,7 +39,34 @@ fn main() {
      // TODO: energyかく。
     visualize_with_person( n, v.clone(), h.clone(), a.clone() , takahashi_first.clone(), aoki_first.clone());
 
+    let mut takahashi_history : Vec<Point> = vec![ takahashi_first ];
+    let mut aoki_history : Vec<Point> = vec![ aoki_first ];
+    for (_, dir1, dir2) in walks.iter() {
+        let before = takahashi_history.last().unwrap();
+        let next :Point  = next_position( before, dir1) ;
+        takahashi_history.push(next ) ;
 
+        let before = aoki_history.last().unwrap();
+        let next :Point  = next_position( before, dir2) ;
+        aoki_history.push(next ) ;
+    }
+
+    if walks.len() != takahashi_history.len() -1 || walks.len() != aoki_history.len() -1 {
+        panic!()
+    }
+
+    let mut aaa = a.clone();
+    for i in 0..walks.len() {
+        if walks[i].0  {
+           aaa = update_board(aaa, takahashi_history[i], aoki_history[i]);
+        }
+    }
+
+    println!("");
+    println!("==========Finished===========");
+    println!("");
+
+    visualize_with_person(n,v,h, aaa, *takahashi_history.last().unwrap(), *aoki_history.last().unwrap())
 }
 
 fn visualize_with_person( n: usize, v : Vec<Vec<i32>>, h : Vec<Vec<i32>>, a : Vec<Vec<i32>>, takahashi: Point, aoki: Point ) {
@@ -169,4 +196,30 @@ fn seek_direction( text: &String ) -> Direction {
     } else {
         panic!()
     }
+}
+
+fn update_board( a:Vec<Vec<i32>>, takahashi: Point, aoki:Point ) -> Vec<Vec<i32>> {
+    let mut copy = a.clone() ;
+    let tmp =copy[takahashi.y][takahashi.x] ;
+    copy[takahashi.y][takahashi.x] = copy[aoki.y][aoki.x] ;
+    copy[aoki.y][aoki.x] = tmp;
+    copy
+}
+
+fn next_position( before : &Point, dir : &Direction) -> Point{
+    let next :Point = if *dir == Direction::Up {
+        Point {x: before.x, y:before.y -1 }
+    } else if *dir == Direction::Down {
+        Point {x: before.x, y:before.y +1}
+    } else if *dir == Direction::Left {
+        Point {x: before.x -1, y:before.y }
+    } else if *dir == Direction::Right {
+        Point {x: before.x+1, y:before.y }
+    } else if *dir == Direction::Stop {
+        Point {x: before.x, y:before.y }
+    } else {
+        panic!()
+    };
+
+    next
 }
