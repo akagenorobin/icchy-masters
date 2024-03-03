@@ -40,7 +40,9 @@ fn main() {
     println!("");
     println!("==========Initial===========");
     println!("");
+    println!("Energy: {}", global_energy(&n, &v, &h, &a)) ;
     visualize_with_person( n, v.clone(), h.clone(), a.clone() , takahashi_first.clone(), aoki_first.clone());
+
 
     let mut takahashi_history : Vec<Point> = vec![ takahashi_first ];
     let mut aoki_history : Vec<Point> = vec![ aoki_first ];
@@ -70,22 +72,25 @@ fn main() {
     println!("");
     println!("==========Step1===========");
     println!("");
+    println!("Energy: {}", global_energy(&n, &v, &h, &result_history[1])) ;
     visualize_with_person(n,v.clone(),h.clone(), result_history[1].clone(), takahashi_history[1], aoki_history[1]) ;
 
     println!("");
     println!("==========Step2===========");
     println!("");
+    println!("Energy: {}", global_energy(&n, &v, &h, &result_history[2])) ;
     visualize_with_person(n,v.clone(),h.clone(), result_history[2].clone(), takahashi_history[2], aoki_history[2]) ;
 
     println!("");
     println!("==========Step3===========");
     println!("");
+    println!("Energy: {}", global_energy(&n, &v, &h, &result_history[3])) ;
     visualize_with_person(n,v.clone(),h.clone(), result_history[3].clone(), takahashi_history[3], aoki_history[3]) ;
 
     println!("");
     println!("==========Finished===========");
     println!("");
-
+    println!("Energy: {}", global_energy(&n, &v, &h, &result_history.last().unwrap())) ;
     visualize_with_person(n,v.clone(),h.clone(), result_history.last().unwrap().clone(), *takahashi_history.last().unwrap(), *aoki_history.last().unwrap()) ;
 }
 
@@ -98,9 +103,9 @@ fn visualize_with_person( n: usize, v : Vec<Vec<i32>>, h : Vec<Vec<i32>>, a : Ve
         for j in 0..n {
             if  j == 0 {print!(" ") ;}
             let format = format!("{:digit$} ", a[i][j]) ;
-            if ( takahashi.x == i, takahashi.y == j ) == ( true, true ) {
+            if ( takahashi.x == j, takahashi.y == i ) == ( true, true ) {
                 print!("{}", format.bright_blue().bold());
-            } else if (aoki.x == i, aoki.y == j ) == ( true, true ) {
+            } else if (aoki.x == j, aoki.y == i ) == ( true, true ) {
                 print!("{}", format.red().bold());
             } else {
                 print!("{}", format);
@@ -242,4 +247,42 @@ fn next_position( before : &Point, dir : &Direction) -> Point{
     };
 
     next
+}
+
+fn energy(
+    n: &usize,
+    v: &Vec<Vec<i32>>,
+    h: &Vec<Vec<i32>>,
+    a: &Vec<Vec<i32>>,
+    x: &usize,
+    y: &usize,
+    value: &i32,
+) -> i32 {
+    let mut e = 0;
+
+    if *x != 0 && (*v)[*y][(*x) - 1] == 0 {
+        e += (*value - (*a)[*y][(*x) - 1]) * (*value - (*a)[*y][(*x) - 1]);
+    }
+    if *x != (*n) - 1 && (*v)[*y][*x] == 0 {
+        e += (*value - (*a)[*y][(*x) + 1]) * (*value - (*a)[*y][(*x) + 1]);
+    }
+    if *y != 0 && (*h)[(*y) - 1][*x] == 0 {
+        e += (*value - (*a)[(*y) - 1][*x]) * (*value - (*a)[(*y) - 1][*x]);
+    }
+    if *y != (*n) - 1 && (*h)[*y][*x] == 0 {
+        e += (*value - (*a)[(*y) + 1][*x]) * (*value - (*a)[(*y) + 1][*x]);
+    }
+
+    e
+}
+
+fn global_energy(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>) -> i32 {
+    let mut e = 0;
+    for x in 0..*n {
+        for y in 0..*n {
+            let value = (*a)[y][x];
+            e += energy(n, v, h, a, &x, &y, &value);
+        }
+    }
+    e
 }
