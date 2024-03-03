@@ -37,6 +37,9 @@ fn main() {
         .collect();
 
      // TODO: energyかく。
+    println!("");
+    println!("==========Initial===========");
+    println!("");
     visualize_with_person( n, v.clone(), h.clone(), a.clone() , takahashi_first.clone(), aoki_first.clone());
 
     let mut takahashi_history : Vec<Point> = vec![ takahashi_first ];
@@ -56,17 +59,34 @@ fn main() {
     }
 
     let mut aaa = a.clone();
+    let mut result_history = vec![a] ;
     for i in 0..walks.len() {
         if walks[i].0  {
            aaa = update_board(aaa, takahashi_history[i], aoki_history[i]);
         }
+        result_history.push( aaa.clone()) ;
     }
+
+    println!("");
+    println!("==========Step1===========");
+    println!("");
+    visualize_with_person(n,v.clone(),h.clone(), result_history[1].clone(), takahashi_history[1], aoki_history[1]) ;
+
+    println!("");
+    println!("==========Step2===========");
+    println!("");
+    visualize_with_person(n,v.clone(),h.clone(), result_history[2].clone(), takahashi_history[2], aoki_history[2]) ;
+
+    println!("");
+    println!("==========Step3===========");
+    println!("");
+    visualize_with_person(n,v.clone(),h.clone(), result_history[3].clone(), takahashi_history[3], aoki_history[3]) ;
 
     println!("");
     println!("==========Finished===========");
     println!("");
 
-    visualize_with_person(n,v,h, aaa, *takahashi_history.last().unwrap(), *aoki_history.last().unwrap())
+    visualize_with_person(n,v.clone(),h.clone(), result_history.last().unwrap().clone(), *takahashi_history.last().unwrap(), *aoki_history.last().unwrap()) ;
 }
 
 fn visualize_with_person( n: usize, v : Vec<Vec<i32>>, h : Vec<Vec<i32>>, a : Vec<Vec<i32>>, takahashi: Point, aoki: Point ) {
