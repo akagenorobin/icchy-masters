@@ -1,8 +1,6 @@
-use rand::Rng; // randクレートからRngトレイトを使用
-use std::io;
 use proconio::input;
 
-fn solve(n: usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>) -> Vec<String> {
+fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<String> {
     let mut ans: Vec<String> = vec![];
     ans.push(format!("{} {} {} {}", 0, 0, n - 1, n - 1));
     ans
@@ -36,14 +34,14 @@ fn main() {
         h.push(_h);
     }
 
-    visualize( n, v, h, a);
+    visualize( n, v.clone(), h.clone(), a.clone());
 
-    // let ans = crate::solve(n, v, h, a);
+    let ans = crate::solve(n, v, h, a);
 
-    // for step in ans {
-    //     println!("{}", step);
-    // }
-    //
+    for step in ans {
+        println!("{}", step);
+    }
+
 
 }
 
