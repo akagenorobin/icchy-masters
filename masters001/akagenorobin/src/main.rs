@@ -1,6 +1,7 @@
 use proconio::input;
+use rand::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Point {
     x: usize,
     y: usize,
@@ -33,16 +34,59 @@ fn energy(
     e
 }
 
-fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<String> {
-    let mut ans: Vec<String> = vec![];
-    let point_t = Point { x: 0, y: 0 };
-    let point_a = Point { x: n - 1, y: n - 1 };
+fn walk(n: &usize, point: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>) -> (char, Point) {
+    let mut p_next: Vec<(char, Point)> = vec![];
 
-    ans.push(format!(
-        "{} {} {} {}",
-        point_t.x, point_t.y, point_a.x, point_a.y
-    ));
+    if point.x != 0 && (*v)[point.y][point.x - 1] == 0 {
+        p_next.push((
+            'L',
+            Point {
+                x: point.x - 1,
+                y: point.y,
+            },
+        ));
+    }
+    if point.x != (*n) - 1 && (*v)[point.y][point.x] == 0 {
+        p_next.push((
+            'R',
+            Point {
+                x: point.x + 1,
+                y: point.y,
+            },
+        ));
+    }
+    if point.y != 0 && (*h)[point.y - 1][point.x] == 0 {
+        p_next.push((
+            'U',
+            Point {
+                x: point.x,
+                y: point.y - 1,
+            },
+        ));
+    }
+    if point.y != (*n) - 1 && (*h)[point.y][point.x] == 0 {
+        p_next.push((
+            'D',
+            Point {
+                x: point.x,
+                y: point.y + 1,
+            },
+        ));
+    }
 
+    let mut rng = rand::thread_rng();
+    let r: usize = rng.gen::<usize>() % p_next.len();
+    p_next[r]
+}
+
+fn update(
+    n: &usize,
+    v: &Vec<Vec<i32>>,
+    h: &Vec<Vec<i32>>,
+    a: &Vec<Vec<i32>>,
+    point_t: &Point,
+    point_a: &Point,
+) -> (String, Point, Point, bool) {
     let value_t = a[point_t.x][point_t.y];
     let value_a = a[point_a.x][point_a.y];
 
@@ -51,8 +95,47 @@ fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<
         - energy(&n, &v, &h, &a, &point_a.x, &point_a.y, &value_a)
         - energy(&n, &v, &h, &a, &point_t.x, &point_t.y, &value_t);
 
+    let point_t_next = walk(&n, &point_t, &v, &h);
+    let point_a_next = walk(&n, &point_a, &v, &h);
+
     if diff < 0 {
-        ans.push("1 . .".to_string());
+        (
+            format!("1 {} {}", point_t_next.0, point_a_next.0),
+            point_t_next.1,
+            point_a_next.1,
+            true
+        )
+    } else {
+        (
+            format!("0 {} {}", point_t_next.0, point_a_next.0),
+            point_t_next.1,
+            point_a_next.1,
+            false
+        )
+    }
+}
+
+fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<String> {
+    let mut ans: Vec<String> = vec![];
+    let mut point_t = Point { x: 0, y: 0 };
+    let mut point_a = Point { x: n - 1, y: n - 1 };
+    let mut a_ = a.clone();
+
+    ans.push(format!(
+        "{} {} {} {}",
+        point_t.x, point_t.y, point_a.x, point_a.y
+    ));
+
+    for _ in 0..4 * n * n {
+        let (ans_, point_t_next, point_a_next, swapped) = update(&n, &v, &h, &a_, &point_t, &point_a);
+
+        if swapped {
+            (a_[point_t.y][point_t.x], a_[point_a.y][point_a.x])= (a[point_a.y][point_a.x], a[point_a.y][point_a.x]);
+        }
+
+        point_t = point_t_next;
+        point_a = point_a_next;
+        ans.push(ans_);
     }
 
     ans
@@ -85,12 +168,7 @@ fn main() {
         }
         h.push(_h);
     }
-    /*
-        println!("{:?}", v);
 
-        println!("{:?}", h);
-        println!("{:?}", a);
-    */
     let ans = solve(n, v, h, a);
 
     for step in ans {
