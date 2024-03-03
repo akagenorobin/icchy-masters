@@ -19,14 +19,8 @@ enum Direction {
 }
 
 fn main() {
-    // println!("Inputを入力してください") ;
-    // input! {
-    //     _t: usize,
-    //     n: usize,
-    //     v_input: [String; n],
-    //     h_input: [String; n-1],
-    //     a: [[i32; n]; n],
-    // }
+    println!("Inputを入力してください") ;
+    let( t,n, v, h, a ) = read_input();
 
     println!("Outputを入力してください") ;
     let lines = read_output();
@@ -42,33 +36,10 @@ fn main() {
         .iter().filter_map( |line| Some(translace(line)) )
         .collect();
 
-    // let mut v: Vec<Vec<i32>> = vec![];
-    // let mut h: Vec<Vec<i32>> = vec![];
-    //
-    // for v_ in v_input {
-    //     let mut _v: Vec<i32> = vec![];
-    //     for v_char in v_.chars() {
-    //         _v.push(v_char as i32 - 48);
-    //     }
-    //     v.push(_v);
-    // }
-    //
-    // for h_ in h_input {
-    //     let mut _h: Vec<i32> = vec![];
-    //     for h_char in h_.chars() {
-    //         _h.push(h_char as i32 - 48);
-    //     }
-    //     h.push(_h);
-    // }
-    //
-    // let point_t = Point { x: 0, y: 0 };
-    // let point_a = Point { x: n - 1, y: n - 1 };
-    // visualize_with_person( n, v.clone(), h.clone(), a.clone() , point_t.clone(), point_a.clone());
-    // let ans = crate::solve(n, v, h, a);
-    //
-    // for step in ans {
-    //     println!("{}", step);
-    // }
+     // TODO: energyかく。
+    visualize_with_person( n, v.clone(), h.clone(), a.clone() , takahashi_first.clone(), aoki_first.clone());
+
+
 }
 
 fn visualize_with_person( n: usize, v : Vec<Vec<i32>>, h : Vec<Vec<i32>>, a : Vec<Vec<i32>>, takahashi: Point, aoki: Point ) {
@@ -120,6 +91,37 @@ fn visualize_with_person( n: usize, v : Vec<Vec<i32>>, h : Vec<Vec<i32>>, a : Ve
 fn get_digit_count(num: usize) -> usize {
     // 整数を文字列に変換し、その長さを返す
     num.to_string().len()
+}
+
+fn read_input() -> ( usize, usize, Vec<Vec<i32>>, Vec<Vec<i32>>, Vec<Vec<i32>>){
+    input! {
+        _t: usize,
+        n: usize,
+        v_input: [String; n],
+        h_input: [String; n-1],
+        a: [[i32; n]; n],
+    }
+
+    let mut v: Vec<Vec<i32>> = vec![];
+    let mut h: Vec<Vec<i32>> = vec![];
+
+    for v_ in v_input {
+        let mut _v: Vec<i32> = vec![];
+        for v_char in v_.chars() {
+            _v.push(v_char as i32 - 48);
+        }
+        v.push(_v);
+    }
+
+    for h_ in h_input {
+        let mut _h: Vec<i32> = vec![];
+        for h_char in h_.chars() {
+            _h.push(h_char as i32 - 48);
+        }
+        h.push(_h);
+    }
+
+    ( _t, n, v, h, a )
 }
 
 fn read_output() -> Vec<String> {
