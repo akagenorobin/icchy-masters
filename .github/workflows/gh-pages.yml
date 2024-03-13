@@ -1,0 +1,44 @@
+name: github pages
+
+on:
+  push:
+    branches:
+      - test
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
+      - run: wasm-pack build --target web --out-dir ../public/wasm
+        working-directory: masters001/vis_akageno/wasm
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: yarn
+        working-directory: masters001/vis_akageno
+      - run: yarn build
+        working-directory: masters001/vis_akageno
+      - name: Upload build artifacts
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./public
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+        with:
+          publish_dir: ./public
