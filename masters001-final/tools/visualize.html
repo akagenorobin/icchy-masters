@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>ドローン軌跡可視化</title>
+  <title>ドローン軌跡＆入力データ可視化</title>
   <style>
     body { font-family: sans-serif; }
     #controls { margin-bottom: 10px; }
@@ -10,49 +10,77 @@
   </style>
 </head>
 <body>
-  <h1>ドローン軌跡可視化</h1>
+  <h1>ドローン軌跡＆入力データ可視化</h1>
   <div id="controls">
-    <label>ファイルを選択:
-      <input type="file" id="fileInput" accept=".txt">
-    </label>
-    <br>
-    <label>ターン数: <span id="turnDisplay">0</span></label>
-    <input type="range" id="turnSlider" min="0" max="0" value="0" style="width:300px;">
+    <div>
+      <label>ドローン出力ファイル (out.txt): 
+        <input type="file" id="fileInputOut" accept=".txt">
+      </label>
+    </div>
+    <div>
+      <label>入力ファイル: 
+        <input type="file" id="fileInputIn" accept=".txt">
+      </label>
+    </div>
+    <div>
+      <label>ターン数: <span id="turnDisplay">0</span></label>
+      <input type="range" id="turnSlider" min="0" max="0" value="0" style="width:300px;">
+    </div>
   </div>
   <svg id="svgOutput" width="800" height="800"></svg>
 
   <script>
-    // 固定の座標範囲：[-100000, 100000]
+    // 飛行領域は固定：[-100000, 100000]
     const MIN_COORD = -100000;
     const MAX_COORD = 100000;
     const SVG_WIDTH = 800;
     const SVG_HEIGHT = 800;
     const MARGIN = 20;
-    // スケールは、全体200000の長さを収める
     const scale = (SVG_WIDTH - 2 * MARGIN) / (MAX_COORD - MIN_COORD);
 
-    let allPoints = []; // ファイルから読み込んだ全 "#p" 座標（順番に格納）
-
-    const fileInput = document.getElementById("fileInput");
-    const turnSlider = document.getElementById("turnSlider");
-    const turnDisplay = document.getElementById("turnDisplay");
-    const svgOutput = document.getElementById("svgOutput");
-
-    // ファイルが選択されたら読み込み
-    fileInput.addEventListener("change", (e) => {
+    // 保存するデータ
+    let dronePath = []; // out.txt から抽出した "#p" 座標 (順番)
+    let destinations = []; // 入力ファイルから目的地 (配列 of {x, y})
+    let walls = []; // 入力ファイルから内側の壁 (配列 of {x1,y1,x2,y2})
+    
+    const fileInputOut = document.getElementById("fileInputOut");
+    const fileInputIn  = document.getElementById("fileInputIn");
+    const turnSlider   = document.getElementById("turnSlider");
+    const turnDisplay  = document.getElementById("turnDisplay");
+    const svgOutput    = document.getElementById("svgOutput");
+    
+    let loadedOut = false, loadedIn = false;
+    
+    fileInputOut.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target.result;
-        parseFile(text);
+        parseOutFile(text);
+        loadedOut = true;
+        updateSlider();
+        drawSVG(parseInt(turnSlider.value,10));
       };
       reader.readAsText(file);
     });
-
-    // ファイル内容から "#p" 行を抽出して allPoints に格納
-    function parseFile(text) {
-      allPoints = [];
+    
+    fileInputIn.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        parseInputFile(text);
+        loadedIn = true;
+        drawSVG(parseInt(turnSlider.value,10));
+      };
+      reader.readAsText(file);
+    });
+    
+    // out.txt の解析：各行の先頭が "#p" の行から座標を抽出
+    function parseOutFile(text) {
+      dronePath = [];
       const lines = text.split(/\r?\n/);
       for (let line of lines) {
         line = line.trim();
@@ -62,70 +90,137 @@
           if (parts.length >= 3) {
             const x = parseFloat(parts[1]);
             const y = parseFloat(parts[2]);
-            allPoints.push({ x, y });
+            dronePath.push({ x, y });
           }
         }
       }
-      // ターン数（＝ポイント数）を最大値に設定（ただし最大5000ターン）
-      const maxTurn = Math.min(allPoints.length, 5000);
+    }
+    
+    // 入力ファイルの解析：最初の行から目的地数、壁数等を読み取り、目的地と壁を抽出
+    function parseInputFile(text) {
+      destinations = [];
+      walls = [];
+      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+      // 最初の行： "num_destinations num_walls param1 param2"
+      const header = lines[0].split(/\s+/);
+      const numDest = parseInt(header[0], 10);
+      const numWalls = parseInt(header[1], 10);
+      // 2行目： 初期位置（今回は表示には使わないが可）
+      // const initPos = lines[1].split(/\s+/).map(Number);
+      // 次の numDest 行：目的地
+      for (let i = 0; i < numDest; i++) {
+        const parts = lines[2 + i].split(/\s+/);
+        const x = parseFloat(parts[0]);
+        const y = parseFloat(parts[1]);
+        destinations.push({ x, y });
+      }
+      // 次、もし numWalls > 0 ならその数だけ壁情報があるとする（各行： "x1 y1 x2 y2"）
+      const wallStart = 2 + numDest;
+      for (let i = 0; i < numWalls; i++) {
+        const parts = lines[wallStart + i].split(/\s+/);
+        const x1 = parseFloat(parts[0]);
+        const y1 = parseFloat(parts[1]);
+        const x2 = parseFloat(parts[2]);
+        const y2 = parseFloat(parts[3]);
+        walls.push({ x1, y1, x2, y2 });
+      }
+      console.log("Destinations:", destinations);
+      console.log("Walls:", walls);
+    }
+    
+    // スライダーの最大値を dronePath の長さ（最大5000）に設定
+    function updateSlider() {
+      const maxTurn = Math.min(dronePath.length, 5000);
       turnSlider.max = maxTurn;
       turnSlider.value = maxTurn;
       turnDisplay.textContent = maxTurn;
-      drawSVG(maxTurn);
     }
-
-    // スライダー操作で表示ターン数変更
+    
     turnSlider.addEventListener("input", () => {
       const turn = parseInt(turnSlider.value, 10);
       turnDisplay.textContent = turn;
       drawSVG(turn);
     });
-
-    // SVG に軌跡を描画
+    
+    // 座標変換（固定の範囲 [-100000,100000] を SVG キャンバスにマッピング）
+    function transformX(x) {
+      return (x - MIN_COORD) * scale + MARGIN;
+    }
+    function transformY(y) {
+      // SVG の y 軸は下向きなので反転
+      return (MAX_COORD - y) * scale + MARGIN;
+    }
+    
+    // SVG に描画
     function drawSVG(turnCount) {
-      // SVG内のすべての子要素をクリア
+      // まず、SVG内をクリア
       while (svgOutput.firstChild) {
         svgOutput.removeChild(svgOutput.firstChild);
       }
-      if (turnCount <= 0) return;
       
-      // SVG上の座標変換関数
-      function transformX(x) {
-        return (x - MIN_COORD) * scale + MARGIN;
-      }
-      function transformY(y) {
-        // SVGの y 軸は下向きなので、反転させる
-        return (MAX_COORD - y) * scale + MARGIN;
-      }
-
-      // ポリライン用の points 属性を作成
-      let pointsAttr = "";
-      for (let i = 0; i < turnCount && i < allPoints.length; i++) {
-        const pt = allPoints[i];
-        const sx = transformX(pt.x);
-        const sy = transformY(pt.y);
-        pointsAttr += `${sx.toFixed(2)},${sy.toFixed(2)} `;
-      }
-
-      // ポリライン (軌跡)
-      const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      polyline.setAttribute("points", pointsAttr.trim());
-      polyline.setAttribute("stroke", "blue");
-      polyline.setAttribute("stroke-width", "2");
-      polyline.setAttribute("fill", "none");
-      svgOutput.appendChild(polyline);
-
-      // 各点を赤い小円で描画
-      for (let i = 0; i < turnCount && i < allPoints.length; i++) {
-        const pt = allPoints[i];
+      // 飛行領域の境界を描く
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("x", transformX(MIN_COORD));
+      rect.setAttribute("y", transformY(MAX_COORD));
+      rect.setAttribute("width", ((MAX_COORD - MIN_COORD) * scale).toString());
+      rect.setAttribute("height", ((MAX_COORD - MIN_COORD) * scale).toString());
+      rect.setAttribute("fill", "none");
+      rect.setAttribute("stroke", "gray");
+      rect.setAttribute("stroke-width", "2");
+      svgOutput.appendChild(rect);
+      
+      // 入力ファイルからの目的地を描画（緑色の円、半径4）
+      destinations.forEach(pt => {
         const cx = transformX(pt.x);
         const cy = transformY(pt.y);
         const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         circle.setAttribute("cx", cx.toFixed(2));
         circle.setAttribute("cy", cy.toFixed(2));
-        circle.setAttribute("r", "3");
-        circle.setAttribute("fill", "red");
+        circle.setAttribute("r", "4");
+        circle.setAttribute("fill", "green");
         svgOutput.appendChild(circle);
+      });
+      
+      // 内側の壁を描画（黒い線）
+      walls.forEach(wall => {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", transformX(wall.x1).toFixed(2));
+        line.setAttribute("y1", transformY(wall.y1).toFixed(2));
+        line.setAttribute("x2", transformX(wall.x2).toFixed(2));
+        line.setAttribute("y2", transformY(wall.y2).toFixed(2));
+        line.setAttribute("stroke", "black");
+        line.setAttribute("stroke-width", "2");
+        svgOutput.appendChild(line);
+      });
+      
+      // dronePath (out.txt) から、指定ターンまでの軌跡を描画
+      if (turnCount > 0 && dronePath.length > 0) {
+        let pointsAttr = "";
+        for (let i = 0; i < turnCount && i < dronePath.length; i++) {
+          const pt = dronePath[i];
+          const sx = transformX(pt.x);
+          const sy = transformY(pt.y);
+          pointsAttr += `${sx.toFixed(2)},${sy.toFixed(2)} `;
+        }
+        const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        polyline.setAttribute("points", pointsAttr.trim());
+        polyline.setAttribute("stroke", "blue");
+        polyline.setAttribute("stroke-width", "2");
+        polyline.setAttribute("fill", "none");
+        svgOutput.appendChild(polyline);
+        
+        // 各点に赤い円を描画
+        for (let i = 0; i < turnCount && i < dronePath.length; i++) {
+          const pt = dronePath[i];
+          const cx = transformX(pt.x);
+          const cy = transformY(pt.y);
+          const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          circle.setAttribute("cx", cx.toFixed(2));
+          circle.setAttribute("cy", cy.toFixed(2));
+          circle.setAttribute("r", "3");
+          circle.setAttribute("fill", "red");
+          svgOutput.appendChild(circle);
+        }
       }
     }
   </script>
