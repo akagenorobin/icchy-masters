@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ドローン軌跡可視化</title>
+  <style>
+    body { font-family: sans-serif; }
+    #controls { margin-bottom: 10px; }
+    #svgOutput { border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>ドローン軌跡可視化</h1>
+  <div id="controls">
+    <label>ファイルを選択:
+      <input type="file" id="fileInput" accept=".txt">
+    </label>
+    <br>
+    <label>ターン数: <span id="turnDisplay">0</span></label>
+    <input type="range" id="turnSlider" min="0" max="0" value="0" style="width:300px;">
+  </div>
+  <svg id="svgOutput" width="800" height="800"></svg>
+
+  <script>
+    // 固定の座標範囲：[-100000, 100000]
+    const MIN_COORD = -100000;
+    const MAX_COORD = 100000;
+    const SVG_WIDTH = 800;
+    const SVG_HEIGHT = 800;
+    const MARGIN = 20;
+    // スケールは、全体200000の長さを収める
+    const scale = (SVG_WIDTH - 2 * MARGIN) / (MAX_COORD - MIN_COORD);
+
+    let allPoints = []; // ファイルから読み込んだ全 "#p" 座標（順番に格納）
+
+    const fileInput = document.getElementById("fileInput");
+    const turnSlider = document.getElementById("turnSlider");
+    const turnDisplay = document.getElementById("turnDisplay");
+    const svgOutput = document.getElementById("svgOutput");
+
+    // ファイルが選択されたら読み込み
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        parseFile(text);
+      };
+      reader.readAsText(file);
+    });
+
+    // ファイル内容から "#p" 行を抽出して allPoints に格納
+    function parseFile(text) {
+      allPoints = [];
+      const lines = text.split(/\r?\n/);
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith("#p")) {
+          // 例: "#p 96403 72154"
+          const parts = line.split(/\s+/);
+          if (parts.length >= 3) {
+            const x = parseFloat(parts[1]);
+            const y = parseFloat(parts[2]);
+            allPoints.push({ x, y });
+          }
+        }
+      }
+      // ターン数（＝ポイント数）を最大値に設定（ただし最大5000ターン）
+      const maxTurn = Math.min(allPoints.length, 5000);
+      turnSlider.max = maxTurn;
+      turnSlider.value = maxTurn;
+      turnDisplay.textContent = maxTurn;
+      drawSVG(maxTurn);
+    }
+
+    // スライダー操作で表示ターン数変更
+    turnSlider.addEventListener("input", () => {
+      const turn = parseInt(turnSlider.value, 10);
+      turnDisplay.textContent = turn;
+      drawSVG(turn);
+    });
+
+    // SVG に軌跡を描画
+    function drawSVG(turnCount) {
+      // SVG内のすべての子要素をクリア
+      while (svgOutput.firstChild) {
+        svgOutput.removeChild(svgOutput.firstChild);
+      }
+      if (turnCount <= 0) return;
+      
+      // SVG上の座標変換関数
+      function transformX(x) {
+        return (x - MIN_COORD) * scale + MARGIN;
+      }
+      function transformY(y) {
+        // SVGの y 軸は下向きなので、反転させる
+        return (MAX_COORD - y) * scale + MARGIN;
+      }
+
+      // ポリライン用の points 属性を作成
+      let pointsAttr = "";
+      for (let i = 0; i < turnCount && i < allPoints.length; i++) {
+        const pt = allPoints[i];
+        const sx = transformX(pt.x);
+        const sy = transformY(pt.y);
+        pointsAttr += `${sx.toFixed(2)},${sy.toFixed(2)} `;
+      }
+
+      // ポリライン (軌跡)
+      const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+      polyline.setAttribute("points", pointsAttr.trim());
+      polyline.setAttribute("stroke", "blue");
+      polyline.setAttribute("stroke-width", "2");
+      polyline.setAttribute("fill", "none");
+      svgOutput.appendChild(polyline);
+
+      // 各点を赤い小円で描画
+      for (let i = 0; i < turnCount && i < allPoints.length; i++) {
+        const pt = allPoints[i];
+        const cx = transformX(pt.x);
+        const cy = transformY(pt.y);
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", cx.toFixed(2));
+        circle.setAttribute("cy", cy.toFixed(2));
+        circle.setAttribute("r", "3");
+        circle.setAttribute("fill", "red");
+        svgOutput.appendChild(circle);
+      }
+    }
+  </script>
+</body>
+</html>
