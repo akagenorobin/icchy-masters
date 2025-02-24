@@ -1,50 +1,46 @@
-use proconio::input;
-use proconio::source::once::OnceSource;
-use std::io::Read;
+use proconio::marker::Chars;
+use proconio::{input, input_interactive};
 
-#[derive(Debug)]
-struct InputData {
-    num_destinations: usize,
-    num_walls: usize,
-    param1: f64,
-    param2: f64,
-    initial_position: (i32, i32),
-    destinations: Vec<(i32, i32)>,
-    alpha: Vec<f64>,
-    wind_params: Vec<(i32, i32)>,
+#[derive(Clone, Debug)]
+pub struct Input {
+    pub eps: f64,
+    pub delta: f64,
+    pub s: (i64, i64),
+    pub ps: Vec<(i64, i64)>,
+    pub walls: Vec<(i64, i64, i64, i64)>,
 }
 
-fn main() {
-    // 標準入力全体を文字列として読み込む
-    let mut buf = String::new();
-    std::io::stdin().read_to_string(&mut buf).unwrap();
-    let source = OnceSource::new(std::io::BufReader::new(buf.as_bytes()));
-    
-    // 入力を読み込む
-    input! {
-        from source,
-        num_destinations: usize,
-        num_walls: usize,
-        param1: f64,
-        param2: f64,
-        init_x: i32,
-        init_y: i32,
-        destinations: [(i32, i32); num_destinations],
-        alpha: [f64; 5000],
-        wind_params: [(i32, i32); 5000],
+fn input() -> Input {
+    input_interactive! {
+        n: usize,
+        m: usize,
+        eps: f64,
+        delta: f64,
+        s: (i64, i64),
+        ps: [(i64, i64); n],
+        walls: [(i64, i64, i64, i64); m],
     }
-    
-    let input_data = InputData {
-        num_destinations,
-        num_walls,
-        param1,
-        param2,
-        initial_position: (init_x, init_y),
-        destinations,
-        alpha,
-        wind_params,
-    };
-    
-    // 読み込んだ内容の確認
-    println!("{:#?}", input_data);
+    Input {
+        eps,
+        delta,
+        s,
+        ps,
+        walls,
+    }
+}
+fn solve(input: &Input) {
+    for _ in 0..5000 {
+        println!("A 0 0");
+
+        input_interactive! {
+            c: u64,
+            h: u64,
+            q: [u64; h],
+        }
+    }
+}
+fn main() {
+    let input = input();
+
+    solve(&input);
 }

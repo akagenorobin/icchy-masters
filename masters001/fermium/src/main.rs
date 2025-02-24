@@ -46,7 +46,7 @@ fn global_energy(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i3
 }
 
 fn get_can_walk(n: &usize, point: &Point, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>)
-    -> Vec<(char, Point)> {
+                -> Vec<(char, Point)> {
     let mut p_next: Vec<(char, Point)> = vec![];
 
     if point.x != 0 && (*v)[point.y][point.x - 1] == 0 {
@@ -156,7 +156,7 @@ fn walk(n: &usize, point_t: &Point, point_a: &Point, v: &Vec<Vec<i32>>, h: &Vec<
 }
 
 fn diff(n: &usize, v: &Vec<Vec<i32>>, h: &Vec<Vec<i32>>, a: &Vec<Vec<i32>>, point_t: &Point,
-point_a: &Point) -> i32 {
+        point_a: &Point) -> i32 {
     let value_t = a[point_t.y][point_t.x];
     let value_a = a[point_a.y][point_a.x];
 
@@ -198,8 +198,14 @@ fn update(
 
 fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<String> {
     let mut ans: Vec<String> = vec![];
-    let mut point_t = Point { x: 0, y: 0 };
-    let mut point_a = Point { x: n - 1, y: n - 1 };
+    let mut rng = rand::thread_rng();
+    let t_x: usize = rng.gen::<usize>() % n;
+    let t_y: usize = rng.gen::<usize>() % n;
+    let a_x: usize = rng.gen::<usize>() % n;
+    let a_y: usize = rng.gen::<usize>() % n;
+    let mut point_t = Point { x: t_x, y: t_y };
+    let mut point_a = Point { x: a_x, y: a_y };
+
     let mut a_ = a.clone();
 
     ans.push(format!(
@@ -208,8 +214,8 @@ fn solve(n: usize, v: Vec<Vec<i32>>, h: Vec<Vec<i32>>, a: Vec<Vec<i32>>) -> Vec<
     ));
 
     for _ in 0..4 * n * n {
-    // for _ in 0..20 {
-    //     println!("{:?},{:?}",point_t,point_a);
+        // for _ in 0..20 {
+        //     println!("{:?},{:?}",point_t,point_a);
         // println!("{}",global_energy(&n,&v,&h,&a_));
         let (ans_, point_t_next, point_a_next, swapped) = update(&n, &v, &h, &a_, &point_t, &point_a);
 
