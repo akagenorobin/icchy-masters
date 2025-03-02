@@ -109,7 +109,15 @@ fn main() {
         // 右方向に移動して岩('@')・鉱石(小文字)を見つけたら穴に運ぶ
         for j in (pj + 1)..n {
             let c = grid[pi][j];
-            if c == '@' || (c >= 'a' && c <= 'z') {
+
+            let index = find_last_a(&grid[pi]);
+            if index == None { continue; }
+            let index = index.unwrap() ;
+            if index <= pj { continue; }
+
+            if c == '@' {
+                if j > index { continue; }
+
                 let steps = j - pj;
                 for _ in 0..steps {
                     println!("1 R");
@@ -118,9 +126,19 @@ fn main() {
                     println!("2 L");
                 }
                 println!("3 U");
-            } else if c >= 'A' && c <= 'Z' {
-                break;
             }
+
+            if c >= 'a' && c <= 'z' {
+                let steps = j - pj;
+                for _ in 0..steps {
+                    println!("1 R");
+                }
+                for _ in 0..steps {
+                    println!("2 L");
+                }
+                println!("3 U");
+            }
+
         }
 
         // 左方向に移動して岩('@')・鉱石(小文字)を見つけたら穴に運ぶ
