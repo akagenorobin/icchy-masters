@@ -84,7 +84,11 @@ impl Board {
         match d {
             Direction::Right => {
                 println!("2 R");
-                if self.grid[self.y][self.x + 1] == '#' {
+                if self.grid[self.y][self.x + 1] == '#' || 
+                   self.grid[self.y][self.x + 1] == 'A' ||
+                   self.grid[self.y][self.x + 1] == 'B' ||
+                   self.grid[self.y][self.x + 1] == 'C' {
+                    // 穴の上に物体を置く場合、物体を完全に消去
                     self.grid[self.y][self.x] = '.';
                 } else {
                     self.grid[self.y][self.x + 1] = self.grid[self.y][self.x];
@@ -93,7 +97,10 @@ impl Board {
             },
             Direction::Left => {
                 println!("2 L");
-                if self.grid[self.y][self.x - 1] == '#' {
+                if self.grid[self.y][self.x - 1] == '#' ||
+                   self.grid[self.y][self.x - 1] == 'A' ||
+                   self.grid[self.y][self.x - 1] == 'B' ||
+                   self.grid[self.y][self.x - 1] == 'C' {
                     self.grid[self.y][self.x] = '.';
                 } else {
                     self.grid[self.y][self.x - 1] = self.grid[self.y][self.x];
@@ -102,7 +109,10 @@ impl Board {
             },
             Direction::Up => {
                 println!("2 U");
-                if self.grid[self.y - 1][self.x] == '#' {
+                if self.grid[self.y - 1][self.x] == '#' ||
+                   self.grid[self.y - 1][self.x] == 'A' ||
+                   self.grid[self.y - 1][self.x] == 'B' ||
+                   self.grid[self.y - 1][self.x] == 'C' {
                     self.grid[self.y][self.x] = '.';
                 } else {
                     self.grid[self.y - 1][self.x] = self.grid[self.y][self.x];
@@ -111,7 +121,10 @@ impl Board {
             },
             Direction::Down => {
                 println!("2 D");
-                if self.grid[self.y + 1][self.x] == '#' {
+                if self.grid[self.y + 1][self.x] == '#' ||
+                   self.grid[self.y + 1][self.x] == 'A' ||
+                   self.grid[self.y + 1][self.x] == 'B' ||
+                   self.grid[self.y + 1][self.x] == 'C' {
                     self.grid[self.y][self.x] = '.';
                 } else {
                     self.grid[self.y + 1][self.x] = self.grid[self.y][self.x];
@@ -248,6 +261,345 @@ fn solve(input: Input) {
             if turn_count >= 10000 {
                 return;
             }
+        }
+    }
+    // 鉱石の位置を全て取得
+    let mut minerals = Vec::new();
+    for i in 0..board.n {
+        for j in 0..board.n {
+            if board.grid[i][j] == 'a' {
+                minerals.push((i, j));
+            }
+        }
+    }
+
+    // 鉱石をグループ分け
+    let mut groups = Vec::new();
+    let mut visited = vec![false; minerals.len()];
+    
+    for i in 0..minerals.len() {
+        if visited[i] {
+            continue;
+        }
+        
+        let mut group = Vec::new();
+        let mut queue = VecDeque::new();
+        queue.push_back(minerals[i]);
+        visited[i] = true;
+        group.push(minerals[i]);
+
+        while let Some(current) = queue.pop_front() {
+            for j in 0..minerals.len() {
+                if visited[j] {
+                    continue;
+                }
+                
+                // BFSで現在の鉱石から他の鉱石に到達可能か確認
+                let mut visited_cells = vec![vec![false; board.n]; board.n];
+                let mut q = VecDeque::new();
+                q.push_back(current);
+                visited_cells[current.0][current.1] = true;
+                
+                let mut reachable = false;
+                while let Some((cy, cx)) = q.pop_front() {
+                    if (cy, cx) == minerals[j] {
+                        reachable = true;
+                        break;
+                    }
+                    
+                    for (dy, dx) in [(0,1), (1,0), (0,-1), (-1,0)].iter() {
+                        let ny = (cy as i32 + dy) as usize;
+                        let nx = (cx as i32 + dx) as usize;
+                        
+                        if ny < board.n && nx < board.n && 
+                           !visited_cells[ny][nx] && 
+                           (board.grid[ny][nx] == '.' || board.grid[ny][nx] == 'a') {
+                            visited_cells[ny][nx] = true;
+                            q.push_back((ny, nx));
+                        }
+                    }
+                }
+                
+                if reachable {
+                    visited[j] = true;
+                    group.push(minerals[j]);
+                    queue.push_back(minerals[j]);
+                }
+            }
+        }
+        
+        if !group.is_empty() {
+            groups.push(group);
+        }
+    }
+    // // グループの内容を出力
+    // println!("鉱石グループ:");
+    // for (i, group) in groups.iter().enumerate() {
+    //     println!("グループ {}: {:?}", i + 1, group);
+    // }
+    // 各グループに対して処理
+    'group_loop: for group in &groups {
+        loop {  // 新しいループを追加
+            // 現在位置から各鉱石グループへの最短経路を探索
+            let mut min_score = std::usize::MAX;
+            let mut best_path = Vec::new();
+            
+            // BFS用のキュー
+            let mut queue = VecDeque::new();
+            let mut visited = vec![vec![None; board.n]; board.n];
+            
+            // 現在位置をキューに追加
+            queue.push_back(((board.y, board.x), Vec::new(), 0));
+            visited[board.y][board.x] = Some((Vec::new(), 0));
+            
+            while let Some(((cy, cx), path, score)) = queue.pop_front() {
+                // グループ内の鉱石に到達した場合、最小スコアを更新
+                if board.grid[cy][cx] == 'a' && group.contains(&(cy, cx)) {
+                    if score < min_score {
+                        min_score = score;
+                        best_path = path.clone();
+                    }
+                    continue;
+                }
+                
+                // 4方向を探索
+                for (dy, dx) in [(0,1), (1,0), (0,-1), (-1,0)].iter() {
+                    let ny = (cy as i32 + dy) as usize;
+                    let nx = (cx as i32 + dx) as usize;
+                    
+                    if ny >= board.n || nx >= board.n {
+                        continue;
+                    }
+                    
+                    // 岩を通過する場合は1000点、それ以外は1点加算
+                    let new_score = score + if board.grid[ny][nx] == '@' { 1000 } else { 1 };
+                    
+                    // 未訪問、もしくはより少ないスコアで到達可能な場合
+                    if visited[ny][nx].is_none() || 
+                       visited[ny][nx].as_ref().unwrap().1 > new_score {
+                        let mut new_path = path.clone();
+                        new_path.push((ny, nx));
+                        
+                        queue.push_back(((ny, nx), new_path.clone(), new_score));
+                        visited[ny][nx] = Some((new_path, new_score));
+                    }
+                }
+            }
+
+            // 最短経路が見つからなかった場合は次のグループへ
+            if best_path.is_empty() {
+                break;
+            }
+
+            // まず、経路上の全ての岩を処理
+            let mut current_pos = (board.y, board.x);
+            let mut path_index = 0;
+
+            while path_index < best_path.len() {
+                let next_pos = best_path[path_index];
+                
+                let dy = next_pos.0 as i32 - current_pos.0 as i32;
+                let dx = next_pos.1 as i32 - current_pos.1 as i32;
+                let direction = match (dy, dx) {
+                    (0, 1) => Direction::Right,
+                    (0, -1) => Direction::Left, 
+                    (-1, 0) => Direction::Up,
+                    (1, 0) => Direction::Down,
+                    _ => continue
+                };
+
+                if board.grid[next_pos.0][next_pos.1] == '@' {
+                    // 岩まで移動
+                    board.mv(direction);
+                    current_pos = next_pos;
+                    
+                    // 来た道を逆にたどって岩を運ぶ
+                    let mut rock_pos = current_pos;
+                    for &prev_pos in best_path[..path_index + 1].iter().rev() {
+                        let dy = prev_pos.0 as i32 - rock_pos.0 as i32;
+                        let dx = prev_pos.1 as i32 - rock_pos.1 as i32;
+                        let direction = match (dy, dx) {
+                            (0, 1) => Direction::Right,
+                            (0, -1) => Direction::Left, 
+                            (-1, 0) => Direction::Up,
+                            (1, 0) => Direction::Down,
+                            _ => continue
+                        };
+                        
+                        board.carry(direction);
+                        rock_pos = prev_pos;
+                    }
+
+                    // 最後に穴まで運ぶ
+                    let hole_pos = board.hole_a;
+                    let dy = hole_pos.0 as i32 - rock_pos.0 as i32;
+                    let dx = hole_pos.1 as i32 - rock_pos.1 as i32;
+                    let direction = if dx.abs() > dy.abs() {
+                        if dx > 0 { Direction::Right } else { Direction::Left }
+                    } else {
+                        if dy > 0 { Direction::Down } else { Direction::Up }
+                    };
+                    board.carry(direction);
+                    
+                    // 岩を運び終わったら、最初の位置から再開
+                    current_pos = (board.y, board.x);
+                    path_index = 0;
+                    continue;
+                } else if board.grid[next_pos.0][next_pos.1] == 'a' {
+                    // 鉱石に到達したら移動して運ぶ
+                    board.mv(direction);
+                    current_pos = next_pos;
+
+                    // 来た道を逆にたどって鉱石を運ぶ
+                    let mut mineral_pos = current_pos;
+                    for &prev_pos in best_path[..path_index + 1].iter().rev() {
+                        let dy = prev_pos.0 as i32 - mineral_pos.0 as i32;
+                        let dx = prev_pos.1 as i32 - mineral_pos.1 as i32;
+                        let direction = match (dy, dx) {
+                            (0, 1) => Direction::Right,
+                            (0, -1) => Direction::Left,
+                            (-1, 0) => Direction::Up,
+                            (1, 0) => Direction::Down,
+                            _ => continue
+                        };
+                        board.carry(direction.clone());
+                        mineral_pos = prev_pos;
+                    }
+
+                    // 最後に穴まで運ぶ
+                    let hole_pos = board.hole_a;
+                    let mut current = mineral_pos;
+                    while board.grid[current.0][current.1] != '#' && 
+                          board.grid[current.0][current.1] != 'A' &&
+                          board.grid[current.0][current.1] != 'B' &&
+                          board.grid[current.0][current.1] != 'C' {
+                        let dy = hole_pos.0 as i32 - current.0 as i32;
+                        let dx = hole_pos.1 as i32 - current.1 as i32;
+                        let direction = if dx.abs() > dy.abs() {
+                            if dx > 0 { Direction::Right } else { Direction::Left }
+                        } else {
+                            if dy > 0 { Direction::Down } else { Direction::Up }
+                        };
+                        board.carry(direction.clone());
+                        match direction {
+                            Direction::Right => current.1 += 1,
+                            Direction::Left => current.1 -= 1,
+                            Direction::Up => current.0 -= 1,
+                            Direction::Down => current.0 += 1,
+                        }
+                    }
+                    break;
+                } else {
+                    // 通常の移動
+                    board.mv(direction);
+                    current_pos = next_pos;
+                    path_index += 1;
+                }
+            }
+
+            // 経路上の岩を全て処理した後、トンネルを使って到達可能な鉱石を全て回収
+            loop {
+                // 現在位置から到達可能な鉱石を探索（岩は通らない）
+                let mut queue = VecDeque::new();
+                let mut visited = vec![vec![false; board.n]; board.n];
+                let mut found_mineral = None;
+                let mut found_path = Vec::new();
+
+                queue.push_back(((board.y, board.x), Vec::new()));
+                visited[board.y][board.x] = true;
+
+                while let Some((pos, path)) = queue.pop_front() {
+                    let (cy, cx) = pos;
+
+                    // 鉱石を見つけた場合
+                    if board.grid[cy][cx] == 'a' && group.contains(&(cy, cx)) {
+                        found_mineral = Some(pos);
+                        found_path = path;
+                        break;
+                    }
+
+                    // 4方向を探索（岩は通らない）
+                    for (dy, dx) in [(0,1), (1,0), (0,-1), (-1,0)].iter() {
+                        let ny = (cy as i32 + dy) as usize;
+                        let nx = (cx as i32 + dx) as usize;
+
+                        if ny >= board.n || nx >= board.n {
+                            continue;
+                        }
+
+                        if !visited[ny][nx] && 
+                           board.grid[ny][nx] != '@' && 
+                           !board.grid[ny][nx].is_ascii_uppercase() {
+                            visited[ny][nx] = true;
+                            let mut new_path = path.clone();
+                            new_path.push((ny, nx));
+                            queue.push_back(((ny, nx), new_path));
+                        }
+                    }
+                }
+
+                // 到達可能な鉱石がなければ終了
+                if found_mineral.is_none() {
+                    break;
+                }
+
+                // 鉱石まで移動
+                let mut current_pos = (board.y, board.x);
+                for &next_pos in &found_path {
+                    let dy = next_pos.0 as i32 - current_pos.0 as i32;
+                    let dx = next_pos.1 as i32 - current_pos.1 as i32;
+                    let direction = match (dy, dx) {
+                        (0, 1) => Direction::Right,
+                        (0, -1) => Direction::Left,
+                        (-1, 0) => Direction::Up,
+                        (1, 0) => Direction::Down,
+                        _ => continue
+                    };
+                    board.mv(direction);
+                    current_pos = next_pos;
+                }
+
+                // 来た道を逆にたどって鉱石を運ぶ
+                let mut mineral_pos = current_pos;
+                for &prev_pos in found_path.iter().rev() {
+                    let dy = prev_pos.0 as i32 - mineral_pos.0 as i32;
+                    let dx = prev_pos.1 as i32 - mineral_pos.1 as i32;
+                    let direction = match (dy, dx) {
+                        (0, 1) => Direction::Right,
+                        (0, -1) => Direction::Left,
+                        (-1, 0) => Direction::Up,
+                        (1, 0) => Direction::Down,
+                        _ => continue
+                    };
+                    board.carry(direction.clone());
+                    mineral_pos = prev_pos;
+                }
+
+                // 最後に穴まで運ぶ（ここを修正）
+                let hole_pos = board.hole_a;
+                let mut current = mineral_pos;
+                while board.grid[current.0][current.1] != '#' && 
+                      board.grid[current.0][current.1] != 'A' &&
+                      board.grid[current.0][current.1] != 'B' &&
+                      board.grid[current.0][current.1] != 'C' {
+                    let dy = hole_pos.0 as i32 - current.0 as i32;
+                    let dx = hole_pos.1 as i32 - current.1 as i32;
+                    let direction = if dx.abs() > dy.abs() {
+                        if dx > 0 { Direction::Right } else { Direction::Left }
+                    } else {
+                        if dy > 0 { Direction::Down } else { Direction::Up }
+                    };
+                    board.carry(direction.clone());
+                    match direction {
+                        Direction::Right => current.1 += 1,
+                        Direction::Left => current.1 -= 1,
+                        Direction::Up => current.0 -= 1,
+                        Direction::Down => current.0 += 1,
+                    }
+                }
+            }
+
+            break 'group_loop;
         }
     }
 }
