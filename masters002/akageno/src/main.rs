@@ -9,12 +9,6 @@ pub enum Direction {
     Down,
 }
 
-pub enum Hole {
-    A,
-    B,
-    C,
-}
-
 impl Direction {
     fn to_delta(self) -> (isize, isize) {
         match self {
@@ -171,7 +165,7 @@ fn input() -> Input {
     Input { n, m, grid }
 }
 
-fn bfs(board: &Board, n: usize, targets: &[char]) -> Option<(char, Vec<Direction>)> {
+fn bfs0(board: &Board, n: usize, targets: &[char]) -> Option<(char, Vec<Direction>)> {
     let mut queue = VecDeque::new();
     let mut visited = vec![vec![false; n]; n];
     let mut paths = vec![vec![None; n]; n];
@@ -180,8 +174,6 @@ fn bfs(board: &Board, n: usize, targets: &[char]) -> Option<(char, Vec<Direction
     visited[board.y][board.x] = true;
 
     while let Some((x, y, path)) = queue.pop_front() {
-        //println!("x: {}, y: {}, grid: {}, path: {:?}", x, y, board.grid[y][x], path);
-
         for dir in Direction::all() {
             let (dx, dy) = dir.clone().to_delta();
             let nx = x as isize + dx;
@@ -193,10 +185,10 @@ fn bfs(board: &Board, n: usize, targets: &[char]) -> Option<(char, Vec<Direction
             let (nx, ny) = (nx as usize, ny as usize);
 
             let cell = board.grid[ny][nx];
+
             if targets.contains(&cell) {
                 let mut new_path = path.clone();
                 new_path.push(dir.clone());
-
                 return Some((cell, new_path)); // target に到達したら即終了
             }
 
@@ -216,80 +208,135 @@ fn bfs(board: &Board, n: usize, targets: &[char]) -> Option<(char, Vec<Direction
     None
 }
 
-fn can_roll(board: &Board, hole: char) -> Option<Direction> {
+fn bfs(board: &Board, n: usize, targets: &[char]) -> Option<(char, Vec<Direction>)> {
+    let mut queue = VecDeque::new();
+    let mut visited = vec![vec![false; n]; n];
+    let mut paths = vec![vec![None; n]; n];
+
+    queue.push_back((board.x, board.y, vec![]));
+    visited[board.y][board.x] = true;
+
+    while let Some((x, y, path)) = queue.pop_front() {
+        for dir in Direction::all() {
+            let (dx, dy) = dir.clone().to_delta();
+            let nx = x as isize + dx;
+            let ny = y as isize + dy;
+
+            if nx < 0 || ny < 0 || nx >= n as isize || ny >= n as isize {
+                continue; // 範囲外
+            }
+            let (nx, ny) = (nx as usize, ny as usize);
+
+            let cell = board.grid[ny][nx];
+
+            for t in targets {
+                if ['A', 'B', 'C'].contains(t) {
+                    if let Some(_) = can_roll(board, nx, ny, *t) {
+                        let mut new_path = path.clone();
+                        new_path.push(dir.clone());
+                        return Some((*t, new_path)); // 転がせる位置に到達したら即終了
+                    }
+                }
+            }
+
+            if targets.contains(&cell) {
+                let mut new_path = path.clone();
+                new_path.push(dir.clone());
+                return Some((cell, new_path)); // target に到達したら即終了
+            }
+
+            if board.grid[ny][nx] != '.' || visited[ny][nx] {
+                continue;
+            }
+
+            visited[ny][nx] = true;
+            let mut new_path = path.clone();
+            new_path.push(dir.clone());
+
+            paths[ny][nx] = Some(new_path.clone());
+            queue.push_back((nx, ny, new_path));
+        }
+    }
+
+    None
+}
+
+fn can_roll(board: &Board, x: usize, y: usize, hole: char) -> Option<Direction> {
+    //println!("x: {}, y:{}, hole:{:?}", x, y, hole);
+
     if hole == 'A' {
-        if board.hole_a.1 == board.y {
-            if board.x < board.hole_a.0 {
-                let through = (board.x + 1..board.hole_a.0).all(|i| board.grid[board.y][i] == '.');
+        if board.hole_a.1 == y {
+            if x < board.hole_a.0 {
+                let through = (x + 1..board.hole_a.0).all(|i| board.grid[y][i] == '.');
                 if through {
                     return Some(Direction::Right);
                 }
-            } else if board.x > board.hole_a.0 {
-                let through = (board.hole_a.0 + 1..board.x).all(|i| board.grid[board.y][i] == '.');
+            } else if x > board.hole_a.0 {
+                let through = (board.hole_a.0 + 1..x).all(|i| board.grid[y][i] == '.');
                 if through {
                     return Some(Direction::Left);
                 }
             }
-        } else if board.hole_a.0 == board.x {
-            if board.y < board.hole_a.1 {
-                let through = (board.y + 1..board.hole_a.1).all(|j| board.grid[j][board.x] == '.');
+        } else if board.hole_a.0 == x {
+            if y < board.hole_a.1 {
+                let through = (y + 1..board.hole_a.1).all(|j| board.grid[j][x] == '.');
                 if through {
                     return Some(Direction::Down);
                 }
-            } else if board.y > board.hole_a.1 {
-                let through = (board.hole_a.1 + 1..board.y).all(|j| board.grid[j][board.x] == '.');
+            } else if y > board.hole_a.1 {
+                let through = (board.hole_a.1 + 1..y).all(|j| board.grid[j][x] == '.');
                 if through {
                     return Some(Direction::Up);
                 }
             }
         }
     } else if hole == 'B' {
-        if board.hole_b.1 == board.y {
-            if board.x < board.hole_b.0 {
-                let through = (board.x + 1..board.hole_b.0).all(|i| board.grid[board.y][i] == '.');
+        if board.hole_b.1 == y {
+            if x < board.hole_b.0 {
+                let through = (x + 1..board.hole_b.0).all(|i| board.grid[y][i] == '.');
                 if through {
                     return Some(Direction::Right);
                 }
-            } else if board.x > board.hole_b.0 {
-                let through = (board.hole_b.0 + 1..board.x).all(|i| board.grid[board.y][i] == '.');
+            } else if x > board.hole_b.0 {
+                let through = (board.hole_b.0 + 1..x).all(|i| board.grid[y][i] == '.');
                 if through {
                     return Some(Direction::Left);
                 }
             }
-        } else if board.hole_b.0 == board.x {
-            if board.y < board.hole_b.1 {
-                let through = (board.y + 1..board.hole_b.1).all(|j| board.grid[j][board.x] == '.');
+        } else if board.hole_b.0 == x {
+            if y < board.hole_b.1 {
+                let through = (y + 1..board.hole_b.1).all(|j| board.grid[j][x] == '.');
                 if through {
                     return Some(Direction::Down);
                 }
-            } else if board.y > board.hole_b.1 {
-                let through = (board.hole_b.1 + 1..board.y).all(|j| board.grid[j][board.x] == '.');
+            } else if y > board.hole_b.1 {
+                let through = (board.hole_b.1 + 1..y).all(|j| board.grid[j][x] == '.');
                 if through {
                     return Some(Direction::Up);
                 }
             }
         }
     } else if hole == 'C' {
-        if board.hole_c.1 == board.y {
-            if board.x < board.hole_c.0 {
-                let through = (board.x + 1..board.hole_c.0).all(|i| board.grid[board.y][i] == '.');
+        if board.hole_c.1 == y {
+            if x < board.hole_c.0 {
+                let through = (x + 1..board.hole_c.0).all(|i| board.grid[y][i] == '.');
                 if through {
                     return Some(Direction::Right);
                 }
-            } else if board.x > board.hole_c.0 {
-                let through = (board.hole_c.0 + 1..board.x).all(|i| board.grid[board.y][i] == '.');
+            } else if x > board.hole_c.0 {
+                let through = (board.hole_c.0 + 1..x).all(|i| board.grid[y][i] == '.');
                 if through {
                     return Some(Direction::Left);
                 }
             }
-        } else if board.hole_c.0 == board.x {
-            if board.y < board.hole_c.1 {
-                let through = (board.y + 1..board.hole_c.1).all(|j| board.grid[j][board.x] == '.');
+        } else if board.hole_c.0 == x {
+            if y < board.hole_c.1 {
+                let through = (y + 1..board.hole_c.1).all(|j| board.grid[j][x] == '.');
                 if through {
                     return Some(Direction::Down);
                 }
-            } else if board.y > board.hole_c.1 {
-                let through = (board.hole_c.1 + 1..board.y).all(|j| board.grid[j][board.x] == '.');
+            } else if y > board.hole_c.1 {
+                let through = (board.hole_c.1 + 1..y).all(|j| board.grid[j][x] == '.');
                 if through {
                     return Some(Direction::Up);
                 }
@@ -305,10 +352,12 @@ fn solve(input: Input) {
     let mut clear = 0;
     let mut steps = 0;
 
-    loop {
+    //loop {
+    for idx in 0..4 {
+        println!("idx: {}", idx);
         let targets = ['a', 'b', 'c'];
 
-        if let Some((t, path)) = bfs(&board, input.n, &targets) {
+        if let Some((t, path)) = bfs0(&board, input.n, &targets) {
             for p in path {
                 board.mv(p);
                 steps += 1;
@@ -316,6 +365,9 @@ fn solve(input: Input) {
                     break;
                 }
             }
+
+            //board.print();
+            //println!("------------------");
 
             let targets = match t {
                 'a' => ['A'],
@@ -326,22 +378,31 @@ fn solve(input: Input) {
             let (t, path) = bfs(&board, input.n, &targets).unwrap_or(('A', vec![]));
 
             for p in path {
+                if let Some(dir) = can_roll(&board, board.x, board.y, t) {
+                    board.roll(dir);
+                    steps += 1;
+                    break;
+                }
+
                 board.carry(p);
                 steps += 1;
                 if steps == 10000 {
                     break;
                 }
 
-                if let Some(dir) = can_roll(&board, t) {
+                if let Some(dir) = can_roll(&board, board.x, board.y, t) {
                     board.roll(dir);
                     steps += 1;
                     break;
                 }
             }
 
+            //board.print();
+            //println!("------------------");
+
             clear += 1;
         } else {
-            if let Some((_, path)) = bfs(&board, input.n, &['@']) {
+            if let Some((_, path)) = bfs0(&board, input.n, &['@']) {
                 for p in path {
                     board.mv(p);
                     steps += 1;
@@ -353,13 +414,19 @@ fn solve(input: Input) {
                 let (t, path) = bfs(&board, input.n, &['A', 'B', 'C']).unwrap_or(('A', vec![]));
 
                 for p in path {
+                    if let Some(dir) = can_roll(&board, board.x, board.y, t) {
+                        board.roll(dir);
+                        steps += 1;
+                        break;
+                    }
+
                     board.carry(p);
                     steps += 1;
                     if steps == 10000 {
                         break;
                     }
 
-                    if let Some(dir) = can_roll(&board, t) {
+                    if let Some(dir) = can_roll(&board, board.x, board.y, t) {
                         board.roll(dir);
                         steps += 1;
                         break;
