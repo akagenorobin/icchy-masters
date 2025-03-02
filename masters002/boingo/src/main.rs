@@ -1,5 +1,17 @@
 use proconio::input;
 
+fn find_last_a(vec: &Vec<char>) -> Option<usize> {
+    let mut last_index: Option<usize> = None;
+
+    for (index, &item) in vec.iter().enumerate() {
+        if item == 'a' {
+            last_index = Some(index);
+        }
+    }
+
+    last_index
+}
+
 fn main() {
     input! {
         n: usize,
@@ -27,19 +39,36 @@ fn main() {
     let holei = pi;
     let holej = pj;
 
+
     // 右に移動
     for j in (pj + 1)..n {
         let c = grid[pi][j];
-        if c == '@' || (c >= 'a' && c <= 'z') {
+
+        let index = find_last_a(&grid[pi]);
+        if index == None { continue; }
+        let index = index.unwrap() ;
+        if index <= pj { continue; }
+
+        if c == '@' {
+            if j > index { continue; }
+
             let steps = j - pj;
             for _ in 0..steps {
                 println!("1 R");
             }
             println!("3 L");
             pj = j;
-        } else if c >= 'A' && c <= 'Z' {
-            break;
         }
+
+        if c >= 'a' && c <= 'z' {
+            let steps = j - pj;
+            for _ in 0..steps {
+                println!("1 R");
+            }
+            println!("3 L");
+            pj = j;
+        }
+
     }
 
     for count in 0..(pj - holej) {
