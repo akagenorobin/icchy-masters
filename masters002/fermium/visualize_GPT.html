@@ -37,6 +37,9 @@
   </div>
   <div>
     <button id="simulateButton">シミュレーション開始</button>
+    <button id="pauseButton">一時停止</button>
+    <button id="prevButton">◀</button>
+    <button id="nextButton">▶</button>
   </div>
   <div>
     <input type="range" id="turnSlider" min="0" max="0" value="0" style="width:300px;">
@@ -49,6 +52,11 @@
     let originalGrid = [];
     let commands = [];
     let player = { row: 0, col: 0 };
+
+    // アニメーションの制御用変数
+    let animationId = null;
+    const ANIMATION_INTERVAL = 100;  // ミリ秒単位でのアニメーション間隔
+    let isPaused = false;  // 一時停止状態を管理
 
     // 入力ファイルから読み込んだグリッドのコピーを作成
     function cloneGrid(grid) {
@@ -181,21 +189,20 @@
 
     // 指定のターン数までシミュレーションする
     function simulate(turnIndex) {
+      console.log("Simulating turn:", turnIndex);
+      console.log("Original grid:", originalGrid);
+      console.log("Commands:", commands);
+      console.log("Player position:", player);
+
       let simGrid = cloneGrid(originalGrid);
-      // 初期状態ではプレイヤーのマーカー 'A' をグリッドから除去
-      for (let i = 0; i < simGrid.length; i++) {
-        for (let j = 0; j < simGrid[i].length; j++) {
-          if (simGrid[i][j] === 'A') {
-            simGrid[i][j] = '.';
-          }
-        }
-      }
-      // プレイヤーの初期位置は、入力ファイルから見つけた位置
       let simPlayer = { row: player.row, col: player.col };
+
       // コマンドを先頭から順に適用
       for (let i = 0; i < turnIndex; i++) {
+        console.log(`Applying command ${i}:`, commands[i]);
         applyCommand(simGrid, simPlayer, commands[i]);
       }
+
       drawGrid(simGrid, simPlayer);
     }
 
@@ -253,20 +260,99 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         commands = e.target.result.split('\n').filter(line => line.trim() !== '');
+        console.log("Loaded commands:", commands);
         document.getElementById('turnSlider').max = commands.length;
+        console.log("Updated slider max:", commands.length);
       }
       reader.readAsText(file);
     });
 
-    // スライダー操作でターン数を変更
-    document.getElementById('turnSlider').addEventListener('input', function(e) {
-      let turn = parseInt(e.target.value);
-      document.getElementById('turnCount').textContent = turn;
-      simulate(turn);
+    // アニメーションを停止する関数
+    function stopAnimation() {
+      if (animationId !== null) {
+        clearInterval(animationId);
+        animationId = null;
+      }
+      isPaused = false;
+    }
+
+    // 1ターン進める関数
+    function nextTurn() {
+      const slider = document.getElementById('turnSlider');
+      const currentTurn = parseInt(slider.value);
+      if (currentTurn < commands.length) {
+        slider.value = currentTurn + 1;
+        document.getElementById('turnCount').textContent = currentTurn + 1;
+        simulate(currentTurn + 1);
+      }
+    }
+
+    // 1ターン戻る関数
+    function prevTurn() {
+      const slider = document.getElementById('turnSlider');
+      const currentTurn = parseInt(slider.value);
+      if (currentTurn > 0) {
+        slider.value = currentTurn - 1;
+        document.getElementById('turnCount').textContent = currentTurn - 1;
+        simulate(currentTurn - 1);
+      }
+    }
+
+    // シミュレーション開始ボタンのイベントリスナー
+    document.getElementById('simulateButton').addEventListener('click', function() {
+      console.log("Simulation button clicked");
+      
+      // スライダーと関連要素の取得
+      const slider = document.getElementById('turnSlider');
+      const turnCount = document.getElementById('turnCount');
+      
+      if (isPaused) {
+        // 一時停止中なら現在の位置から再開
+        isPaused = false;
+      } else {
+        // 新規開始：アニメーションを停止してスライダーを0に戻す
+        stopAnimation();
+        slider.value = '0';
+        turnCount.textContent = '0';
+      }
+      
+      // アニメーションの開始
+      let currentTurn = parseInt(slider.value);
+      animationId = setInterval(() => {
+        if (currentTurn >= commands.length) {
+          stopAnimation();
+          return;
+        }
+        if (isPaused) {
+          stopAnimation();
+          return;
+        }
+        
+        // スライダーと表示を更新
+        currentTurn++;
+        slider.value = currentTurn.toString();
+        turnCount.textContent = currentTurn.toString();
+        simulate(currentTurn);
+      }, ANIMATION_INTERVAL);
     });
 
-    document.getElementById('simulateButton').addEventListener('click', function() {
-      simulate(parseInt(document.getElementById('turnSlider').value));
+    // 一時停止ボタンのイベントリスナー
+    document.getElementById('pauseButton').addEventListener('click', function() {
+      if (animationId !== null) {
+        isPaused = true;
+      }
+    });
+
+    // 1ターン戻るボタンのイベントリスナー
+    document.getElementById('prevButton').addEventListener('click', function() {
+      stopAnimation();
+      prevTurn();
+    });
+
+    // 1ターン進むボタンのイベントリスナー
+    document.getElementById('nextButton').addEventListener('click', function() {
+      stopAnimation();
+      nextTurn();
     });
   </script>
 </body>
