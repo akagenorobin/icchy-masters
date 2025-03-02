@@ -298,6 +298,14 @@
       }
     }
 
+    // スライダーの操作で自動アニメーションを停止し、その位置の状態を表示
+    document.getElementById('turnSlider').addEventListener('input', function(e) {
+      stopAnimation();
+      let turn = parseInt(e.target.value);
+      document.getElementById('turnCount').textContent = turn;
+      simulate(turn);
+    });
+
     // シミュレーション開始ボタンのイベントリスナー
     document.getElementById('simulateButton').addEventListener('click', function() {
       console.log("Simulation button clicked");
@@ -310,10 +318,8 @@
         // 一時停止中なら現在の位置から再開
         isPaused = false;
       } else {
-        // 新規開始：アニメーションを停止してスライダーを0に戻す
+        // 新規開始：現在のターンから開始（リセットしない）
         stopAnimation();
-        slider.value = '0';
-        turnCount.textContent = '0';
       }
       
       // アニメーションの開始
@@ -329,10 +335,10 @@
         }
         
         // スライダーと表示を更新
+        simulate(currentTurn);
         currentTurn++;
         slider.value = currentTurn.toString();
         turnCount.textContent = currentTurn.toString();
-        simulate(currentTurn);
       }, ANIMATION_INTERVAL);
     });
 
